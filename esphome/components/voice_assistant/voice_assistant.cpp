@@ -91,11 +91,11 @@ void VoiceAssistant::start(struct sockaddr_storage *addr, uint16_t port) {
   inet_pton(AF_INET, "192.168.31.111", &(addr_in->sin_addr));
 
   if (this->dest_addr_.ss_family == AF_INET) {
-    addr_in->sin_port = htons(port);
+    ((struct sockaddr_in *) &this->dest_addr_)->sin_port = htons(port);
   }
 #if LWIP_IPV6
   else if (this->dest_addr_.ss_family == AF_INET6) {
-    addr_in->sin6_port = htons(port);
+    ((struct sockaddr_in *) &this->dest_addr_)->sin6_port = htons(port);
   }
 #endif
   else {
