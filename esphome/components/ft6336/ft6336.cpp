@@ -1,13 +1,13 @@
-#include "ektf2232.h"
+#include "ft6336.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #include <vector>
 
 namespace esphome {
-namespace ektf2232 {
+namespace ft6336 {
 
-static const char *const TAG = "ektf2232";
+static const char *const TAG = "ft6336";
 
 static const uint8_t SOFT_RESET_CMD[4] = {0x77, 0x77, 0x77, 0x77};
 static const uint8_t HELLO[4] = {0x55, 0x55, 0x55, 0x55};
@@ -15,22 +15,22 @@ static const uint8_t GET_X_RES[4] = {0x53, 0x60, 0x00, 0x00};
 static const uint8_t GET_Y_RES[4] = {0x53, 0x63, 0x00, 0x00};
 static const uint8_t GET_POWER_STATE_CMD[4] = {0x53, 0x50, 0x00, 0x01};
 
-void EKTF2232TouchscreenStore::gpio_intr(EKTF2232TouchscreenStore *store) { store->touch = true; }
+void FT6336TouchscreenStore::gpio_intr(FT6336TouchscreenStore *store) { store->touch = true; }
 
-void EKTF2232Touchscreen::setup() {
+void FT6336Touchscreen::setup() {
   ESP_LOGCONFIG(TAG, "Setting up EKT2232 Touchscreen...");
   this->interrupt_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
   this->interrupt_pin_->setup();
 
   this->store_.pin = this->interrupt_pin_->to_isr();
-  this->interrupt_pin_->attach_interrupt(EKTF2232TouchscreenStore::gpio_intr, &this->store_,
+  this->interrupt_pin_->attach_interrupt(FT6336TouchscreenStore::gpio_intr, &this->store_,
                                          gpio::INTERRUPT_FALLING_EDGE);
 
   this->rts_pin_->setup();
 
   this->hard_reset_();
   if (!this->soft_reset_()) {
-    ESP_LOGE(TAG, "Failed to soft reset EKT2232!");
+    ESP_LOGE(TAG, "Failed to soft reset FT6336!");
     this->interrupt_pin_->detach_interrupt();
     this->mark_failed();
     return;
@@ -60,7 +60,7 @@ void EKTF2232Touchscreen::setup() {
   this->set_power_state(true);
 }
 
-void EKTF2232Touchscreen::loop() {
+void FT6336Touchscreen::loop() {
   if (!this->store_.touch)
     return;
   this->store_.touch = false;
@@ -117,13 +117,13 @@ void EKTF2232Touchscreen::loop() {
   }
 }
 
-void EKTF2232Touchscreen::set_power_state(bool enable) {
+void FT6336Touchscreen::set_power_state(bool enable) {
   uint8_t data[] = {0x54, 0x50, 0x00, 0x01};
   data[1] |= (enable << 3);
   this->write(data, 4);
 }
 
-bool EKTF2232Touchscreen::get_power_state() {
+bool FT6336Touchscreen::get_power_state() {
   uint8_t received[4];
   this->write(GET_POWER_STATE_CMD, 4);
   this->store_.touch = false;
@@ -131,14 +131,14 @@ bool EKTF2232Touchscreen::get_power_state() {
   return (received[1] >> 3) & 1;
 }
 
-void EKTF2232Touchscreen::hard_reset_() {
+void FT6336Touchscreen::hard_reset_() {
   this->rts_pin_->digital_write(false);
   delay(15);
   this->rts_pin_->digital_write(true);
   delay(15);
 }
 
-bool EKTF2232Touchscreen::soft_reset_() {
+bool FT6336Touchscreen::soft_reset_() {
   auto err = this->write(SOFT_RESET_CMD, 4);
   if (err != i2c::ERROR_OK)
     return false;
@@ -157,12 +157,12 @@ bool EKTF2232Touchscreen::soft_reset_() {
   return !memcmp(received, HELLO, 4);
 }
 
-void EKTF2232Touchscreen::dump_config() {
+void FT6336Touchscreen::dump_config() {
   ESP_LOGCONFIG(TAG, "EKT2232 Touchscreen:");
   LOG_I2C_DEVICE(this);
   LOG_PIN("  Interrupt Pin: ", this->interrupt_pin_);
   LOG_PIN("  RTS Pin: ", this->rts_pin_);
 }
 
-}  // namespace ektf2232
+}  // namespace ft6336
 }  // namespace esphome

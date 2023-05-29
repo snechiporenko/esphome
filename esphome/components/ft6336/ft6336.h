@@ -7,18 +7,18 @@
 #include "esphome/core/hal.h"
 
 namespace esphome {
-namespace ektf2232 {
+namespace ft6336 {
 
-struct EKTF2232TouchscreenStore {
+struct FT6336TouchscreenStore {
   volatile bool touch;
   ISRInternalGPIOPin pin;
 
-  static void gpio_intr(EKTF2232TouchscreenStore *store);
+  static void gpio_intr(FT6336TouchscreenStore *store);
 };
 
 using namespace touchscreen;
 
-class EKTF2232Touchscreen : public Touchscreen, public Component, public i2c::I2CDevice {
+class FT6336Touchscreen : public Touchscreen, public Component, public i2c::I2CDevice {
  public:
   void setup() override;
   void loop() override;
@@ -36,10 +36,10 @@ class EKTF2232Touchscreen : public Touchscreen, public Component, public i2c::I2
 
   InternalGPIOPin *interrupt_pin_;
   GPIOPin *rts_pin_;
-  EKTF2232TouchscreenStore store_;
+  FT6336TouchscreenStore store_;
   uint16_t x_resolution_;
   uint16_t y_resolution_;
 };
 
-}  // namespace ektf2232
+}  // namespace ft6336
 }  // namespace esphome

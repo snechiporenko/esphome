@@ -5,24 +5,24 @@ from esphome import pins
 from esphome.components import i2c, touchscreen
 from esphome.const import CONF_ID, CONF_INTERRUPT_PIN
 
-CODEOWNERS = ["@jesserockz"]
+CODEOWNERS = ["@snechiporenko"]
 DEPENDENCIES = ["i2c"]
 
-ektf2232_ns = cg.esphome_ns.namespace("ektf2232")
-EKTF2232Touchscreen = ektf2232_ns.class_(
-    "EKTF2232Touchscreen",
+ft6336_ns = cg.esphome_ns.namespace("ft6336")
+FT6336Touchscreen = ft6336_ns.class_(
+    "FT6336Touchscreen",
     touchscreen.Touchscreen,
     cg.Component,
     i2c.I2CDevice,
 )
 
-CONF_EKTF2232_ID = "ektf2232_id"
+CONF_FT6336_ID = "ft6336_id"
 CONF_RTS_PIN = "rts_pin"
 
 CONFIG_SCHEMA = touchscreen.TOUCHSCREEN_SCHEMA.extend(
     cv.Schema(
         {
-            cv.GenerateID(): cv.declare_id(EKTF2232Touchscreen),
+            cv.GenerateID(): cv.declare_id(FT6336Touchscreen),
             cv.Required(CONF_INTERRUPT_PIN): cv.All(
                 pins.internal_gpio_input_pin_schema
             ),
