@@ -9,6 +9,19 @@
 namespace esphome {
 namespace ft6336 {
 
+typedef enum {
+  FOCALTECH_EVENT_PUT_DOWN,
+  FOCALTECH_EVENT_PUT_UP,
+  FOCALTECH_EVENT_CONTACT,
+  FOCALTECH_EVENT_NONE,
+} EventFlag_t;
+
+typedef enum {
+  FOCALTECH_PMODE_ACTIVE = 0,     // ~4mA
+  FOCALTECH_PMODE_MONITOR = 1,    // ~3mA
+  FOCALTECH_PMODE_DEEPSLEEP = 3,  // ~100uA  The reset pin must be pulled down to wake up
+} PowerMode_t;
+
 struct FT6336TouchscreenStore {
   volatile bool touch;
   ISRInternalGPIOPin pin;
@@ -27,9 +40,6 @@ class FT6336Touchscreen : public Touchscreen, public Component, public i2c::I2CD
   void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
   void set_rts_pin(GPIOPin *pin) { this->rts_pin_ = pin; }
 
-  void set_power_state(bool enable);
-  bool get_power_state();
-
  protected:
   void hard_reset_();
   bool soft_reset_();
@@ -37,8 +47,11 @@ class FT6336Touchscreen : public Touchscreen, public Component, public i2c::I2CD
   InternalGPIOPin *interrupt_pin_;
   GPIOPin *rts_pin_;
   FT6336TouchscreenStore store_;
-  uint16_t x_resolution_;
-  uint16_t y_resolution_;
+
+ private:
+  bool getPoint(uint16_t &x, uint16_t &y);
+  void setTheshold(uint8_t value);
+  void setPowerMode(PowerMode_t m);
 };
 
 }  // namespace ft6336

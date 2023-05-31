@@ -9,11 +9,32 @@ namespace ft6336 {
 
 static const char *const TAG = "ft6336";
 
-static const uint8_t SOFT_RESET_CMD[4] = {0x77, 0x77, 0x77, 0x77};
-static const uint8_t HELLO[4] = {0x55, 0x55, 0x55, 0x55};
-static const uint8_t GET_X_RES[4] = {0x53, 0x60, 0x00, 0x00};
-static const uint8_t GET_Y_RES[4] = {0x53, 0x63, 0x00, 0x00};
-static const uint8_t GET_POWER_STATE_CMD[4] = {0x53, 0x50, 0x00, 0x01};
+#define FT5206_VENDID (0x11)
+#define FT6206_CHIPID (0x06)
+#define FT6236_CHIPID (0x36)
+#define FT6236U_CHIPID (0x64)
+#define FT5206U_CHIPID (0x64)
+
+#define FOCALTECH_REGISTER_MODE (0x00)
+#define FOCALTECH_REGISTER_GEST (0x01)
+#define FOCALTECH_REGISTER_STATUS (0x02)
+#define FOCALTECH_REGISTER_TOUCH1_XH (0x03)
+#define FOCALTECH_REGISTER_TOUCH1_XL (0x04)
+#define FOCALTECH_REGISTER_TOUCH1_YH (0x05)
+#define FOCALTECH_REGISTER_TOUCH1_YL (0x06)
+#define FOCALTECH_REGISTER_THRESHHOLD (0x80)
+#define FOCALTECH_REGISTER_CONTROL (0x86)
+#define FOCALTECH_REGISTER_MONITORTIME (0x87)
+#define FOCALTECH_REGISTER_ACTIVEPERIOD (0x88)
+#define FOCALTECH_REGISTER_MONITORPERIOD (0x89)
+
+#define FOCALTECH_REGISTER_LIB_VERSIONH (0xA1)
+#define FOCALTECH_REGISTER_LIB_VERSIONL (0xA2)
+#define FOCALTECH_REGISTER_INT_STATUS (0xA4)
+#define FOCALTECH_REGISTER_POWER_MODE (0xA5)
+#define FOCALTECH_REGISTER_VENDOR_ID (0xA3)
+#define FOCALTECH_REGISTER_VENDOR1_ID (0xA8)
+#define FOCALTECH_REGISTER_ERROR_STATUS (0xA9)
 
 void FT6336TouchscreenStore::gpio_intr(FT6336TouchscreenStore *store) { store->touch = true; }
 
@@ -29,35 +50,39 @@ void FT6336Touchscreen::setup() {
   this->rts_pin_->setup();
 
   this->hard_reset_();
-  if (!this->soft_reset_()) {
-    ESP_LOGE(TAG, "Failed to soft reset FT6336!");
-    this->interrupt_pin_->detach_interrupt();
-    this->mark_failed();
-    return;
-  }
+  this->write_byte(FOCALTECH_REGISTER_INT_STATUS, 1);
+  /*
+  The time period of switching from active mode to monitor mode when there is no touching,
+  unit position, the manual indicates that the default value is 0xA,
+  and the default value is written here
+  */
+  this->write_byte(FOCALTECH_REGISTER_MONITORTIME, 0x0A);
+  /*
+  Report rate in monitor mode,
+  unit location, default value is 0x28, 40ms?
+  */
+  this->write_byte(FOCALTECH_REGISTER_MONITORPERIOD, 0x28);
 
-  // Get touch resolution
-  uint8_t received[4];
-  this->write(GET_X_RES, 4);
-  if (this->read(received, 4)) {
-    ESP_LOGE(TAG, "Failed to read X resolution!");
-    this->interrupt_pin_->detach_interrupt();
-    this->mark_failed();
-    return;
-  }
-  this->x_resolution_ = ((received[2])) | ((received[3] & 0xf0) << 4);
-
-  this->write(GET_Y_RES, 4);
-  if (this->read(received, 4)) {
-    ESP_LOGE(TAG, "Failed to read Y resolution!");
-    this->interrupt_pin_->detach_interrupt();
-    this->mark_failed();
-    return;
-  }
-  this->y_resolution_ = ((received[2])) | ((received[3] & 0xf0) << 4);
   this->store_.touch = false;
+}
 
-  this->set_power_state(true);
+void FT6336Touchscreen::setPowerMode(PowerMode_t m) { this->write_byte(FOCALTECH_REGISTER_POWER_MODE, m); }
+
+void FT6336Touchscreen::setTheshold(uint8_t value) { this->write_byte(FOCALTECH_REGISTER_THRESHHOLD, value); }
+
+bool FT6336Touchscreen::getPoint(uint16_t &x, uint16_t &y) {
+  uint8_t buffer[5];
+  if (this->read_register(FOCALTECH_REGISTER_STATUS, buffer, 5)) {
+    if (buffer[0] == 0 || buffer[0] > 2) {
+      return false;
+    }
+    // event = (EventFlag_t)(buffer[1] & 0xC0);
+    x = (buffer[1] & 0x0F) << 8 | buffer[2];
+    y = (buffer[3] & 0x0F) << 8 | buffer[4];
+
+    return true;
+  }
+  return false;
 }
 
 void FT6336Touchscreen::loop() {
@@ -65,70 +90,34 @@ void FT6336Touchscreen::loop() {
     return;
   this->store_.touch = false;
 
-  uint8_t touch_count = 0;
-  std::vector<TouchPoint> touches;
+  uint16_t x, y;
 
-  uint8_t raw[8];
-  this->read(raw, 8);
-  for (int i = 0; i < 8; i++) {
-    if (raw[7] & (1 << i))
-      touch_count++;
-  }
-
-  if (touch_count == 0) {
-    for (auto *listener : this->touch_listeners_)
-      listener->release();
-    return;
-  }
-
-  touch_count = std::min<uint8_t>(touch_count, 2);
-
-  ESP_LOGV(TAG, "Touch count: %d", touch_count);
-
-  for (int i = 0; i < touch_count; i++) {
-    uint8_t *d = raw + 1 + (i * 3);
-    uint32_t raw_x = (d[0] & 0xF0) << 4 | d[1];
-    uint32_t raw_y = (d[0] & 0x0F) << 8 | d[2];
-
-    raw_x = raw_x * this->display_height_ - 1;
-    raw_y = raw_y * this->display_width_ - 1;
-
+  if (this->getPoint(x, y)) {
     TouchPoint tp;
     switch (this->rotation_) {
       case ROTATE_0_DEGREES:
-        tp.y = raw_x / this->x_resolution_;
-        tp.x = this->display_width_ - 1 - (raw_y / this->y_resolution_);
+        tp.y = this->display_height_ - y;
+        tp.x = x;
         break;
       case ROTATE_90_DEGREES:
-        tp.x = raw_x / this->x_resolution_;
-        tp.y = raw_y / this->y_resolution_;
+        tp.x = this->display_height_ - y;
+        tp.y = this->display_width_ - x;
         break;
       case ROTATE_180_DEGREES:
-        tp.y = this->display_height_ - 1 - (raw_x / this->x_resolution_);
-        tp.x = raw_y / this->y_resolution_;
+        tp.y = y;
+        tp.x = this->display_width_ - x;
         break;
       case ROTATE_270_DEGREES:
-        tp.x = this->display_height_ - 1 - (raw_x / this->x_resolution_);
-        tp.y = this->display_width_ - 1 - (raw_y / this->y_resolution_);
+        tp.x = y;
+        tp.y = x;
         break;
     }
 
     this->defer([this, tp]() { this->send_touch_(tp); });
+  } else {
+    for (auto *listener : this->touch_listeners_)
+      listener->release();
   }
-}
-
-void FT6336Touchscreen::set_power_state(bool enable) {
-  uint8_t data[] = {0x54, 0x50, 0x00, 0x01};
-  data[1] |= (enable << 3);
-  this->write(data, 4);
-}
-
-bool FT6336Touchscreen::get_power_state() {
-  uint8_t received[4];
-  this->write(GET_POWER_STATE_CMD, 4);
-  this->store_.touch = false;
-  this->read(received, 4);
-  return (received[1] >> 3) & 1;
 }
 
 void FT6336Touchscreen::hard_reset_() {
@@ -139,7 +128,7 @@ void FT6336Touchscreen::hard_reset_() {
 }
 
 bool FT6336Touchscreen::soft_reset_() {
-  auto err = this->write(SOFT_RESET_CMD, 4);
+  /*auto err = this->write(SOFT_RESET_CMD, 4);
   if (err != i2c::ERROR_OK)
     return false;
 
@@ -154,11 +143,12 @@ bool FT6336Touchscreen::soft_reset_() {
   this->read(received, 4);
   this->store_.touch = false;
 
-  return !memcmp(received, HELLO, 4);
+  return !memcmp(received, HELLO, 4);*/
+  return true;
 }
 
 void FT6336Touchscreen::dump_config() {
-  ESP_LOGCONFIG(TAG, "EKT2232 Touchscreen:");
+  ESP_LOGCONFIG(TAG, "FT6336 Touchscreen:");
   LOG_I2C_DEVICE(this);
   LOG_PIN("  Interrupt Pin: ", this->interrupt_pin_);
   LOG_PIN("  RTS Pin: ", this->rts_pin_);
