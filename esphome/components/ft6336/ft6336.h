@@ -5,22 +5,10 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
+#include "focaltech.h"
 
 namespace esphome {
 namespace ft6336 {
-
-typedef enum {
-  FOCALTECH_EVENT_PUT_DOWN,
-  FOCALTECH_EVENT_PUT_UP,
-  FOCALTECH_EVENT_CONTACT,
-  FOCALTECH_EVENT_NONE,
-} EventFlag_t;
-
-typedef enum {
-  FOCALTECH_PMODE_ACTIVE = 0,     // ~4mA
-  FOCALTECH_PMODE_MONITOR = 1,    // ~3mA
-  FOCALTECH_PMODE_DEEPSLEEP = 3,  // ~100uA  The reset pin must be pulled down to wake up
-} PowerMode_t;
 
 struct FT6336TouchscreenStore {
   volatile bool touch;
@@ -33,6 +21,9 @@ using namespace touchscreen;
 
 class FT6336Touchscreen : public Touchscreen, public Component, public i2c::I2CDevice {
  public:
+  static FT6336Touchscreen *instance;
+  FT6336Touchscreen();
+
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -40,18 +31,18 @@ class FT6336Touchscreen : public Touchscreen, public Component, public i2c::I2CD
   void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
   void set_rts_pin(GPIOPin *pin) { this->rts_pin_ = pin; }
 
+  void setTheshold(uint8_t value);
+  void setPowerMode(PowerMode_t m);
+
  protected:
   void hard_reset_();
-  bool soft_reset_();
-
   InternalGPIOPin *interrupt_pin_;
   GPIOPin *rts_pin_;
   FT6336TouchscreenStore store_;
+  FocalTech_Class *focaltech = new FocalTech_Class();
 
- private:
-  bool getPoint(uint16_t &x, uint16_t &y);
-  void setTheshold(uint8_t value);
-  void setPowerMode(PowerMode_t m);
+  static uint8_t read_cb(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t len);
+  static uint8_t write_cb(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t len);
 };
 
 }  // namespace ft6336
