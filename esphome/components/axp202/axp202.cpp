@@ -85,7 +85,7 @@ int AXP202Component::getBattPercentage() { return axp20x->getBattPercentage(); }
 bool AXP202Component::isChargeing() { return axp20x->isChargeing(); }
 
 bool AXP202Component::isEnable(uint8_t ch) {
-  if (AXP202_LDO2)
+  if (ch == AXP202_LDO2)
     return axp20x->isLDO2Enable();
   return false;
 }

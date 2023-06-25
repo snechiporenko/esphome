@@ -54,9 +54,15 @@ void FT6336Touchscreen::hard_reset_() {
   this->rts_pin_->digital_write(true);
 }
 
-void FT6336Touchscreen::setPowerMode(PowerMode_t m) { focaltech->setPowerMode(m); }
-
-void FT6336Touchscreen::setTheshold(uint8_t value) { focaltech->setTheshold(value); }
+void FT6336Touchscreen::active(bool is_active) {
+  if (is_active) {
+    focaltech->enableINT();
+    focaltech->setPowerMode(FOCALTECH_PMODE_ACTIVE);
+  } else {
+    focaltech->disableINT();
+    focaltech->setPowerMode(FOCALTECH_PMODE_DEEPSLEEP);
+  }
+}
 
 void FT6336Touchscreen::loop() {
   if (!this->store_.touch) {
@@ -68,6 +74,7 @@ void FT6336Touchscreen::loop() {
   if (!focaltech->getPoint(x, y)) {
     for (auto *listener : this->touch_listeners_)
       listener->release();
+    return;
   }
 
   TouchPoint tp;
