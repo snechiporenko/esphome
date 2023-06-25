@@ -24,7 +24,6 @@ void FT6336Touchscreen::setup() {
 
   focaltech->begin(read_cb, write_cb);
 
-  focaltech->enableINT();
   /*
   The time period of switching from active mode to monitor mode when there is no touching,
   unit position, the manual indicates that the default value is 0xA,
@@ -37,7 +36,7 @@ void FT6336Touchscreen::setup() {
   */
   focaltech->setMonitorPeriod(0x28);
 
-  this->interrupt_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
+  this->interrupt_pin_->pin_mode(gpio::FLAG_INPUT);
   this->interrupt_pin_->setup();
 
   this->store_.pin = this->interrupt_pin_->to_isr();
@@ -45,6 +44,8 @@ void FT6336Touchscreen::setup() {
                                          gpio::INTERRUPT_FALLING_EDGE);
 
   this->store_.touch = false;
+
+  focaltech->enableINT();
 }
 
 void FT6336Touchscreen::hard_reset_() {
@@ -58,41 +59,38 @@ void FT6336Touchscreen::setPowerMode(PowerMode_t m) { focaltech->setPowerMode(m)
 void FT6336Touchscreen::setTheshold(uint8_t value) { focaltech->setTheshold(value); }
 
 void FT6336Touchscreen::loop() {
-  /*if (!this->store_.touch) {
-    for (auto *listener : this->touch_listeners_)
-      listener->release();
+  if (!this->store_.touch) {
     return;
-  }*/
+  }
   this->store_.touch = false;
 
   uint16_t x, y;
-
-  if (focaltech->getPoint(x, y)) {
-    TouchPoint tp;
-    switch (this->rotation_) {
-      case ROTATE_0_DEGREES:
-        tp.y = this->display_height_ - y;
-        tp.x = x;
-        break;
-      case ROTATE_90_DEGREES:
-        tp.x = this->display_height_ - y;
-        tp.y = this->display_width_ - x;
-        break;
-      case ROTATE_180_DEGREES:
-        tp.y = y;
-        tp.x = this->display_width_ - x;
-        break;
-      case ROTATE_270_DEGREES:
-        tp.x = y;
-        tp.y = x;
-        break;
-    }
-
-    this->defer([this, tp]() { this->send_touch_(tp); });
-  } else {
+  if (!focaltech->getPoint(x, y)) {
     for (auto *listener : this->touch_listeners_)
       listener->release();
   }
+
+  TouchPoint tp;
+  switch (this->rotation_) {
+    case ROTATE_0_DEGREES:
+      tp.y = this->display_height_ - y;
+      tp.x = x;
+      break;
+    case ROTATE_90_DEGREES:
+      tp.x = this->display_height_ - y;
+      tp.y = this->display_width_ - x;
+      break;
+    case ROTATE_180_DEGREES:
+      tp.y = y;
+      tp.x = this->display_width_ - x;
+      break;
+    case ROTATE_270_DEGREES:
+      tp.x = y;
+      tp.y = x;
+      break;
+  }
+
+  this->defer([this, tp]() { this->send_touch_(tp); });
 }
 
 void FT6336Touchscreen::dump_config() {
