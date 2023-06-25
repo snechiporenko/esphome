@@ -25,7 +25,6 @@ class AXP202Component : public PollingComponent, public i2c::I2CDevice {
   AXP202Component();
 
   void set_batterylevel_sensor(sensor::Sensor *batterylevel_sensor) { batterylevel_sensor_ = batterylevel_sensor; }
-  void set_brightness(float brightness) { brightness_ = brightness; }
 
   // ========== INTERNAL METHODS ==========
   // (In most use cases you won't need these)
@@ -54,8 +53,6 @@ class AXP202Component : public PollingComponent, public i2c::I2CDevice {
   sensor::Sensor *batterylevel_sensor_;
   InternalGPIOPin *interrupt_pin_;
   AXP202ComponentStore store_;
-  float brightness_{1.0f};
-  float curr_brightness_{-1.0f};
   CallbackManager<void()> click_callback_{};
 
   static uint8_t read_cb(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t len);

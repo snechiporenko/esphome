@@ -56,8 +56,8 @@ void FT6336Touchscreen::hard_reset_() {
 
 void FT6336Touchscreen::active(bool is_active) {
   if (is_active) {
-    focaltech->enableINT();
     focaltech->setPowerMode(FOCALTECH_PMODE_ACTIVE);
+    focaltech->enableINT();
   } else {
     focaltech->disableINT();
     focaltech->setPowerMode(FOCALTECH_PMODE_DEEPSLEEP);
@@ -80,20 +80,20 @@ void FT6336Touchscreen::loop() {
   TouchPoint tp;
   switch (this->rotation_) {
     case ROTATE_0_DEGREES:
+      tp.x = this->display_width_ - x;
       tp.y = this->display_height_ - y;
-      tp.x = x;
       break;
     case ROTATE_90_DEGREES:
-      tp.x = this->display_height_ - y;
-      tp.y = this->display_width_ - x;
+      tp.x = this->display_width_ - y;
+      tp.y = x;
       break;
     case ROTATE_180_DEGREES:
+      tp.x = x;
       tp.y = y;
-      tp.x = this->display_width_ - x;
       break;
     case ROTATE_270_DEGREES:
       tp.x = y;
-      tp.y = x;
+      tp.y = this->display_height_ - x;
       break;
   }
 

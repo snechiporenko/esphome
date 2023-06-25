@@ -6,7 +6,6 @@ from esphome.components import i2c, sensor
 from esphome.const import (
     CONF_ID,
     CONF_BATTERY_LEVEL,
-    CONF_BRIGHTNESS,
     UNIT_PERCENT,
     ICON_BATTERY,
     CONF_INTERRUPT_PIN,
@@ -40,7 +39,6 @@ CONFIG_SCHEMA = (
                 accuracy_decimals=1,
                 icon=ICON_BATTERY,
             ),
-            cv.Optional(CONF_BRIGHTNESS, default=1.0): cv.percentage,
         }
     )
     .extend(cv.polling_component_schema("60s"))
@@ -60,10 +58,6 @@ async def to_code(config):
         conf = config[CONF_BATTERY_LEVEL]
         sens = await sensor.new_sensor(conf)
         cg.add(var.set_batterylevel_sensor(sens))
-
-    if CONF_BRIGHTNESS in config:
-        conf = config[CONF_BRIGHTNESS]
-        cg.add(var.set_brightness(conf))
 
     for conf in config.get(CONF_ON_CLICK, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
