@@ -8,7 +8,7 @@ static const char *const TAG = "remote_base";
 
 #ifdef USE_ESP32
 RemoteRMTChannel::RemoteRMTChannel(uint8_t mem_block_num) : mem_block_num_(mem_block_num) {
-  static rmt_channel_t next_rmt_channel = RMT_CHANNEL_0;
+  static rmt_channel_t next_rmt_channel = RMT_CHANNEL_1;
   this->channel_ = next_rmt_channel;
   next_rmt_channel = rmt_channel_t(int(next_rmt_channel) + mem_block_num);
 }

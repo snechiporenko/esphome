@@ -229,6 +229,8 @@ void VoiceAssistant::on_event(const api::VoiceAssistantEventResponse &msg) {
         }
       }
       ESP_LOGE(TAG, "Error: %s - %s", code.c_str(), message.c_str());
+      if (code == "pipeline-timeout")
+        break;
       this->continuous_ = false;
       this->signal_stop();
       this->error_trigger_->trigger(code, message);
